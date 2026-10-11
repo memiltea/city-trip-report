@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>비바의 도시 출장 보고서</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* 레이아웃: 위쪽 '출장 일정표'(단계 줄) + 가운데 작업 화면(왼쪽 보고서 칸 · 오른쪽 조사 도우미) + 아래 이동 버튼.
+   '도시 탐구소'(9차시)의 파랑·주황, 통통한 버튼 모양을 그대로 잇는 단일 밝은 테마입니다. */
+:root{
+  color-scheme:light;
+  --navy:#22336B; --navy-d:#17244C;
+  --blue:#3D6BE0; --blue-d:#2B53BE; --blue-l:#8FAAF4;
+  --orange:#E96A1E; --orange-d:#B84F0F; --orange-l:#FFEFE0;
+  --amber:#FFB53D; --amber-d:#E09318;
+  --stamp:#D8432F;
+  --sky:#E9F1FE; --ground:#F7F8FC; --paper:#FFFFFF;
+  --line:#D7DEEE; --edge:#D9DCED;
+  --ink:#1D2A52; --ink-soft:#5B6884;
+  --display:'Jua','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --body:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:radial-gradient(circle at 86% 8%,#FFE8CE 0,transparent 26%),radial-gradient(circle at 14% 88%,#E2ECFF 0,transparent 32%),var(--ground);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.6;-webkit-text-size-adjust:100%}
+h1,h2,h3,p,label,li{word-break:keep-all}
+img{max-width:100%;display:block}
+button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input,textarea{font-family:inherit;font-size:inherit;color:inherit}
+a{color:var(--blue-d)}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+
+/* ---------- 틀 ---------- */
+.app{display:flex;flex-direction:column;height:100%}
+.topbar{flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:10px 18px;color:#fff;background:linear-gradient(115deg,#22336B,#3D6BE0 70%,#5A85EC);box-shadow:0 5px 0 #1B2A5A;z-index:3}
+.brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1 1 auto}
+.brand-mark{width:48px;height:48px;border-radius:50%;overflow:hidden;flex:0 0 auto;border:3px solid #fff;background:var(--sky)}
+.brand-mark img{width:100%;height:100%;object-fit:cover}
+.brand-t{font-family:var(--display);font-size:23px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand-s{font-size:13px;color:#D6E2FB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.saved{font-size:13px;font-weight:700;background:#ffffff24;border-radius:999px;padding:6px 12px;white-space:nowrap}
+.tbtn{flex:0 0 auto;border:2px solid #ffffffa8;border-radius:14px;background:#ffffff24;box-shadow:0 4px 0 #1B2A5A;padding:8px 13px;font-size:15px;font-weight:700;color:#fff;white-space:nowrap}
+.tbtn:active{transform:translateY(4px);box-shadow:none}
+.tbtn.warn{background:var(--amber);color:#4d3c1a;border-color:#fff}
+
+.steps{flex:0 0 auto;background:#FFFAFC;border-bottom:2px solid #E6E4F4;overflow-x:auto}
+.steps-in{display:flex;gap:8px;padding:10px 18px;min-width:max-content}
+.step{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:14px;border:2px solid var(--line);background:var(--paper);box-shadow:0 4px 0 var(--line);font-weight:700;font-size:15px;white-space:nowrap}
+.step .n{width:26px;height:26px;border-radius:50%;background:var(--sky);color:var(--navy);font-size:14px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.step .pg{font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.step.done .n{background:var(--stamp);color:#fff}
+.step.is-now{background:var(--navy);border-color:var(--navy);box-shadow:0 4px 0 var(--navy-d);color:#fff}
+.step.is-now .pg{color:#D6E2FB}
+.step.is-now .n{background:var(--amber);color:#4d3c1a}
+
+.scroller{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;min-height:0}
+.screen{max-width:1280px;margin:0 auto;padding-block:26px 34px;padding-inline:clamp(16px,3vw,36px)}
+.navbar{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:11px 18px;padding-bottom:calc(11px + env(safe-area-inset-bottom,0px));background:#FFFAFC;border-top:2px solid #E6E4F4}
+.navbar .sp{flex:1 1 auto}
+
+/* ---------- 공통 부품 ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 22px;min-height:54px;font-weight:700;font-size:18px;color:#fff;text-decoration:none;border:2px solid #354AB5;border-radius:17px;background:linear-gradient(#6883F2,#526CE2);box-shadow:0 6px 0 #354AB5;transition:transform .15s,box-shadow .15s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 0 #354AB5}
+.btn:active{transform:translateY(5px);box-shadow:0 1px 0 #354AB5}
+.btn.ghost{background:#fff;color:var(--navy);border-color:#CBD0EC;box-shadow:0 6px 0 #CBD0EC}
+.btn.ghost:hover{box-shadow:0 8px 0 #AEB8E7}
+.btn.go{background:linear-gradient(#FFD27A,#FFB53D);border-color:var(--amber-d);color:#4d3c1a;box-shadow:0 6px 0 var(--amber-d)}
+.btn.go:hover{box-shadow:0 8px 0 var(--amber-d)}
+.btn.sm{padding:8px 14px;min-height:44px;font-size:15px;border-radius:14px}
+.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+.eyebrow{display:inline-block;background:var(--navy);color:#fff;font-size:14px;font-weight:700;padding:6px 15px;border-radius:999px;margin-bottom:10px}
+.eyebrow.o{background:var(--orange)}
+h1.title{font-family:var(--display);font-weight:400;font-size:clamp(28px,3.8vw,46px);line-height:1.25;margin:0 0 10px;color:var(--navy);text-wrap:balance}
+.lede{margin:0 0 18px;color:var(--ink-soft);font-size:clamp(16px,1.8vw,20px);max-width:60ch}
+.viva{display:flex;align-items:center;gap:12px;margin:0 0 20px}
+.viva-pic{width:60px;height:60px;border-radius:50%;overflow:hidden;flex:0 0 auto;border:3px solid #fff;outline:3px solid var(--orange);background:var(--sky)}
+.viva-pic img{width:100%;height:100%;object-fit:cover}
+.viva-say{position:relative;background:var(--paper);border:2px solid var(--orange);border-radius:20px;padding:10px 18px;box-shadow:0 5px 0 #FBD9BC;max-width:62ch;min-width:0}
+.viva-say b{color:var(--orange-d)}
+.card{background:var(--paper);border:2px solid #E0E3F2;border-radius:22px;box-shadow:0 7px 0 var(--edge);padding:20px;min-width:0}
+.card h2{font-family:var(--display);font-weight:400;font-size:23px;margin:0 0 4px;color:var(--navy);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card h2 .k{width:34px;height:34px;border-radius:11px;background:var(--blue-d);color:#fff;font-size:17px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.card.o h2 .k{background:var(--orange)}
+.card h2 .ok{margin-left:auto;font-family:var(--body);font-size:13px;font-weight:700;color:#fff;background:var(--stamp);border-radius:999px;padding:3px 11px}
+.card .q{margin:0 0 12px;color:var(--ink-soft);font-size:16px}
+.stack{display:flex;flex-direction:column;gap:18px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.hint{font-size:14px;color:var(--ink-soft)}
+label.lb{display:block;font-weight:700;font-size:16px;margin:12px 0 6px}
+textarea,input[type=text]{width:100%;background:#fff;border:3px solid #DBE0F2;border-radius:15px;padding:11px 14px;line-height:1.6;font-size:17px;outline:none}
+textarea:focus,input[type=text]:focus{border-color:var(--blue-l);box-shadow:0 0 0 4px #9CACF642}
+textarea{resize:vertical;min-height:84px}
+.inline{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.inline > div{flex:1 1 150px;min-width:0}
+.inline label.lb{margin-top:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:2px solid #CBD1EB;border-radius:999px;background:#fff;box-shadow:0 4px 0 #CBD1EB;padding:7px 15px;min-height:44px;font-size:16px;font-weight:700;display:inline-flex;align-items:center}
+.chip:active{transform:translateY(3px);box-shadow:0 1px 0 #CBD1EB}
+.chip.on{background:var(--blue);border-color:#20459F;box-shadow:0 4px 0 #20459F;color:#fff}
+.chip.f.on{background:var(--orange);border-color:var(--orange-d);box-shadow:0 4px 0 var(--orange-d)}
+.fb{margin-top:10px;border-radius:14px;padding:9px 14px;font-size:15px;font-weight:700;background:var(--sky);color:var(--navy)}
+.fb.warn{background:var(--orange-l);color:#8A4A12}
+
+/* ---------- 표지 ---------- */
+.hero{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);border-radius:28px;overflow:hidden;border:4px solid #fff;box-shadow:0 10px 0 #D5DCEE;background:#fff}
+.hero > img{width:100%;height:100%;min-height:300px;object-fit:cover;object-position:42% 60%}
+.hero-card{padding:clamp(18px,2.8vw,38px);background:linear-gradient(160deg,#fff,#EEF4FF);border-right:8px solid var(--orange);min-width:0}
+.hero-card h1{font-family:var(--display);font-weight:400;font-size:clamp(30px,3.6vw,50px);line-height:1.2;margin:12px 0 8px;color:var(--navy)}
+.hero-card h1 em{font-style:normal;color:var(--blue);background:linear-gradient(transparent 62%,#FFDFA8 62%)}
+.hero-card p{margin:0 0 14px;color:var(--ink-soft)}
+.dest{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:22px}
+.dest button{display:flex;align-items:center;gap:12px;text-align:left;padding:12px 16px;border-radius:18px;color:#fff;background:linear-gradient(135deg,#4E7AE4,#2B53BE);box-shadow:0 6px 0 #1B3A8C}
+.dest button:nth-child(even){background:linear-gradient(135deg,#F39A4A,#DF6B18);box-shadow:0 6px 0 #9C430B}
+.dest button:active{transform:translateY(5px);box-shadow:none}
+.dest i{font-style:normal;width:44px;height:44px;border-radius:14px;background:#ffffff38;font-family:var(--display);font-size:22px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.dest b{display:block;font-family:var(--display);font-weight:400;font-size:23px;line-height:1.2}
+.dest span{font-size:14px}
+
+/* ---------- 출장 준비 ---------- */
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:16px}
+.tool{display:flex;flex-direction:column;gap:8px}
+.tool h3{font-family:var(--display);font-weight:400;font-size:22px;margin:0;color:var(--navy)}
+.tool .who{font-size:13px;font-weight:700;color:var(--orange-d);background:var(--orange-l);border-radius:999px;padding:2px 10px;align-self:flex-start}
+.tool p{margin:0;font-size:15px;color:var(--ink-soft);flex:1 1 auto}
+.how{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:14px;margin:0;padding:0;list-style:none;counter-reset:how}
+.how li{counter-increment:how;border-radius:18px;padding:16px;color:#fff;background:var(--blue-d);box-shadow:0 6px 0 #1B3A8C}
+.how li:nth-child(2){background:#4E7AE4}
+.how li:nth-child(3){background:#EE8A33;box-shadow:0 6px 0 var(--orange-d)}
+.how li:nth-child(4){background:#DF6B18;box-shadow:0 6px 0 #9C430B}
+.how li::before{content:counter(how);font-family:var(--display);font-size:32px;line-height:1;display:block;margin-bottom:6px}
+.how b{display:block;font-size:18px}
+.how span{font-size:15px}
+.sect{font-family:var(--display);font-weight:400;font-size:25px;color:var(--navy);margin:26px 0 12px}
+
+/* ---------- 도시 화면 ---------- */
+.banner{position:relative;border-radius:24px;overflow:hidden;box-shadow:0 7px 0 #26336F2C;margin-bottom:20px;background:var(--navy);min-height:150px;display:flex;align-items:flex-end}
+.banner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55}
+.banner-t{position:relative;padding:18px 22px;color:#fff;flex:1 1 auto;min-width:0}
+.banner-t small{font-weight:700;font-size:14px;background:var(--orange);border-radius:999px;padding:4px 12px}
+.banner-t h1{font-family:var(--display);font-weight:400;font-size:clamp(30px,4.4vw,52px);line-height:1.2;margin:8px 0 0;text-shadow:0 3px 0 #17244C}
+.seal{position:relative;margin:14px 18px;flex:0 0 auto;width:96px;height:96px;border-radius:50%;border:4px dashed #ffffffa0;color:#ffffffd0;font-size:13px;font-weight:700;text-align:center;display:flex;align-items:center;justify-content:center;line-height:1.3}
+.seal.on{border:5px double var(--stamp);background:#fff;color:var(--stamp);font-family:var(--display);font-size:19px;transform:rotate(-10deg)}
+.work{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:22px;align-items:start}
+.help{position:sticky;top:8px;background:#FFFCF7;border:2px solid #F3C193;border-radius:22px;box-shadow:0 7px 0 #F3C193;padding:18px;min-width:0}
+.help h2{font-family:var(--display);font-weight:400;font-size:22px;margin:0 0 10px;color:#8A4A12}
+.help h3{font-size:15px;margin:16px 0 6px;color:var(--navy)}
+.help ol,.help ul{margin:0;padding-left:20px;font-size:15px}
+.help li{margin-bottom:4px}
+.links{display:flex;flex-direction:column;gap:8px}
+.links a{display:block;text-decoration:none;background:#fff;border:2px solid #CBD0EC;border-radius:14px;box-shadow:0 4px 0 #CBD0EC;padding:8px 12px;font-weight:700;font-size:15px;color:var(--navy)}
+.links a span{display:block;font-weight:400;font-size:13px;color:var(--ink-soft)}
+.links a:active{transform:translateY(3px);box-shadow:0 1px 0 #CBD0EC}
+.nm{margin-top:12px;padding:12px 14px;border-radius:16px;background:var(--sky)}
+.nm label.lb{margin-top:0}
+.bank{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.wd{border:2px solid #CBD1EB;border-radius:10px;background:#fff;padding:4px 11px;font-size:15px;font-weight:700;min-height:38px}
+.wd.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.bank-t{font-size:13px;color:var(--ink-soft);margin:8px 0 0}
+.think{margin-top:14px;border-left:6px solid var(--amber);background:#FFF8EA;border-radius:0 14px 14px 0;padding:10px 14px;font-size:15px}
+.think b{color:#8A4A12}
+.think ul{margin:4px 0 0;padding-left:20px}
+.roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px;margin-top:14px}
+.role{border:2px solid var(--line);border-radius:16px;padding:12px 14px;min-width:0}
+.role b{font-family:var(--display);font-weight:400;font-size:20px;color:var(--navy)}
+.role p{margin:0 0 8px;font-size:14px;color:var(--ink-soft)}
+.role .chip{min-height:40px;padding:4px 13px;font-size:15px}
+.owner{display:inline-block;margin-top:8px;font-size:14px;font-weight:700;background:#ffffff30;border-radius:999px;padding:3px 12px}
+.guide{counter-reset:g;list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.guide li{counter-increment:g;position:relative;padding:12px 14px 12px 58px;border:2px solid var(--line);border-radius:16px;background:#fff}
+.guide li::before{content:counter(g);position:absolute;left:12px;top:12px;width:34px;height:34px;border-radius:11px;background:var(--blue-d);color:#fff;font-family:var(--display);font-size:19px;display:flex;align-items:center;justify-content:center}
+.guide b{display:block;color:var(--navy)}
+.guide span{font-size:15px;color:var(--ink-soft)}
+.maps{display:flex;flex-direction:column;gap:6px}
+.mp{display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#fff;border:2px solid #CBD0EC;border-radius:14px;padding:6px 10px}
+.mp b{flex:1 1 120px;font-size:15px;color:var(--navy);min-width:0}
+.mp a{flex:0 0 auto;text-decoration:none;font-size:13px;font-weight:700;color:#fff;background:var(--blue-d);border-radius:999px;padding:4px 11px}
+.mp a + a{background:var(--orange)}
+.lv{display:inline-block;font-size:12px;font-weight:700;color:#fff;border-radius:999px;padding:2px 10px;background:var(--blue-d);vertical-align:1px}
+.lv.lv2{background:var(--orange)}
+.lv.lv3{background:var(--navy)}
+.book{background:var(--sky);border-radius:14px;padding:10px 14px;font-size:15px}
+.book ul{margin-top:6px}
+.book b{color:var(--blue-d)}
+
+/* ---------- 비교 ---------- */
+.bars{display:flex;flex-direction:column;gap:14px}
+.bar-row{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;align-items:center}
+.bar-row > b{font-family:var(--display);font-weight:400;font-size:20px;color:var(--navy)}
+.bar{display:flex;align-items:center;gap:8px;margin:3px 0;min-width:0}
+.bar i{display:block;height:20px;border-radius:0 8px 8px 0;background:var(--blue-l);min-width:3px;flex:0 0 auto}
+.bar.mine i{background:var(--orange)}
+.bar span{font-size:14px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.bar.none span{color:var(--ink-soft);font-weight:400}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:14px;font-weight:700;margin-bottom:12px}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;background:var(--blue-l);margin-right:6px;vertical-align:-2px}
+.legend i.m{background:var(--orange)}
+.tscroll{overflow-x:auto}
+table.cmp{width:100%;border-collapse:collapse;font-size:15px;min-width:560px}
+table.cmp th,table.cmp td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+table.cmp th{background:var(--navy);color:#fff;white-space:nowrap}
+table.cmp td:first-child{font-weight:700;white-space:nowrap;background:var(--sky)}
+.empty{color:#8E97B3}
+
+/* ---------- 보고서 ---------- */
+.sheet{background:#fff;border:2px solid #E0E3F2;border-radius:22px;box-shadow:0 7px 0 var(--edge);padding:clamp(16px,3vw,30px)}
+.sheet-h{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:4px solid var(--navy);padding-bottom:12px;margin-bottom:14px}
+.sheet-h h2{font-family:var(--display);font-weight:400;font-size:clamp(26px,3.4vw,38px);margin:0;color:var(--navy);display:flex;align-items:center;gap:10px}
+.sheet-h h2 img{width:52px;height:52px;border-radius:50%}
+.sign{border-collapse:collapse;font-size:13px;text-align:center}
+.sign th,.sign td{border:1px solid var(--ink);padding:3px 10px;min-width:70px}
+.sign td{height:46px;font-weight:700}
+.meta{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:15px;margin-bottom:16px}
+.meta b{color:var(--ink-soft);margin-right:6px}
+.rc{margin-bottom:18px}
+.rc h3{font-family:var(--display);font-weight:400;font-size:22px;margin:0 0 6px;color:#fff;background:var(--blue-d);display:inline-block;padding:3px 16px;border-radius:10px 10px 0 0}
+.rc:nth-of-type(even) h3{background:var(--orange)}
+.rc table{width:100%;border-collapse:collapse;font-size:15px}
+.rc th,.rc td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+.rc th{width:8.5em;background:var(--sky);color:var(--navy)}
+.rc td{white-space:pre-wrap;overflow-wrap:anywhere}
+
+@media (max-width:980px){
+  .hero,.work{grid-template-columns:1fr}
+  .hero > img{aspect-ratio:16/9;min-height:0;order:-1}
+  .hero-card{border-right:0;border-top:8px solid var(--orange)}
+  .help{position:static;order:-1}
+}
+@media (max-width:640px){
+  .brand-s,.saved{display:none}
+  .tbtn{padding:7px 9px;font-size:13px}
+  .brand-t{font-size:19px}
+  .seal{width:76px;height:76px;font-size:12px;margin:10px}
+  .seal.on{font-size:16px}
+  .btn{padding:10px 16px;font-size:16px;min-height:50px}
+  .rc th{width:5.5em}
+}
+@media (prefers-reduced-motion:reduce){.btn,.chip{transition:none}}
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"><img src="assets/viva_mascot.jpg" alt="출장 가는 비바"></div>
+      <div style="min-width:0">
+        <div class="brand-t">비바의 도시 출장 보고서</div>
+        <div class="brand-s">사회 4-2 · 3단원 · 세종 · 부산 · 전주 · 울산</div>
+      </div>
+    </div>
+    <span class="saved" id="savedTag">이 기기에 자동 저장돼요</span>
+    <button class="tbtn" id="teacherBtn">선생님</button>
+    <button class="tbtn" id="resetBtn">처음부터</button>
+  </header>
+  <nav class="steps" aria-label="출장 일정표"><div class="steps-in" id="steps"></div></nav>
+  <main class="scroller" id="scroller"></main>
+  <div class="navbar">
+    <button class="btn ghost" id="prevBtn">◀ 이전</button>
+    <div class="sp"></div>
+    <button class="btn go" id="nextBtn">다음 ▶</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ===================== 자료 — 도시·사이트는 여기만 바꾸면 됩니다 ===================== */
+var MASCOT = "assets/viva_mascot.jpg", COVER = "assets/cover.jpg";
+var JUMIN = "https://jumin.mois.go.kr/statMonth.do";            // 열면 바로 시·도별 인구 표가 보입니다
+var SGIS_MAP = "https://sgis.mods.go.kr/view/map/interactiveMap/mainIndexView";
+var SGIS_EDU = "https://sgis.mods.go.kr/view/edu/ele/main";          // SGIS 에듀 초등
+
+/* 난이도: 1 = 누구나, 2 = 도전, 3 = 고수 */
+var TOOLS = [
+  {lv:1, name:"주민등록 인구통계", who:"행정안전부", url:JUMIN, btn:"인구 표 열기",
+   desc:"열자마자 인구 표가 나와요. 도시 이름이 있는 줄에서 ‘총 인구수’만 읽으면 돼요."},
+  {lv:1, name:"사회 교과서 125~129쪽", who:"교과서", url:"", btn:"",
+   desc:"교통과 산업은 교과서의 지도와 글에서 찾아요. 지난 시간에 배운 내용을 떠올려 보세요."},
+  {lv:2, name:"도시의 공식 누리집", who:"시청", url:"", btn:"",
+   desc:"글이 길고 어려운 말이 많아요. 도시 화면에 있는 ‘도전’ 바로 가기로 필요한 쪽만 열어 보세요."},
+  {lv:3, name:"SGIS 통계지도", who:"국가데이터처", url:SGIS_MAP, btn:"통계지도 열기",
+   desc:"지도 위에 인구를 색으로 나타내요. 단계가 많으니 먼저 SGIS 에듀에서 연습해 보세요."}
+];
+var LV = ["","누구나","도전","고수"];
+
+/* easy = 인구를 가장 쉽게 찾는 길, more = 더 알아보고 싶은 친구를 위한 쪽 */
+var CITIES = [
+  {id:"sejong", name:"세종특별자치시", short:"세종", tag:"행정 기관이 많은 도시", tb:380000, tbT:"약 38만 명", img:"assets/f_sejong.jpg",
+   site:"https://www.sejong.go.kr",
+   easy:{url:JUMIN, name:"주민등록 인구통계 표", how:"표에서 ‘세종특별자치시’ 줄을 찾아 ‘총 인구수’를 읽어요."},
+   more:{url:"https://www.sejong.go.kr/stat/index.do", name:"세종통계포털", how:"세종시가 만든 통계 모음이에요."},
+   maps:["세종특별자치시","정부세종청사","교육부","세종국책연구단지","조치원역"],
+   orgL:"세종에 있는 행정 기관과 연구 기관 이름", orgP:"예) 교육부, ○○부, ○○연구원",
+   extra:[{url:"https://www.gbmo.go.kr/chungsa/bl/mvinstt/selectMvinsttList.do?gbdId=CD002&mi=1303", name:"정부세종청사 입주 기관", how:"세종청사에 있는 행정 기관 이름이 동별로 나와요. 교육부는 몇 동에 있을까요?"},
+          {url:"https://www.nrc.re.kr/menu.es?mid=a12006000000", name:"나라의 연구 기관 26곳", how:"이름을 보고, 지도에서 ‘세종국책연구단지’를 찾아 세종에 있는 곳을 골라요."}],
+   book:"125쪽", ask:["행정 기관이 옮겨 온 뒤 인구는 늘었나요?","세종을 지나는 고속 국도와 철도가 있나요?"]},
+  {id:"busan", name:"부산광역시", short:"부산", tag:"교통이 발달한 도시", tb:3300000, tbT:"약 330만 명", img:"assets/f_busan.jpg",
+   site:"https://www.busan.go.kr",
+   easy:{url:JUMIN, name:"주민등록 인구통계 표", how:"표에서 ‘부산광역시’ 줄을 찾아 ‘총 인구수’를 읽어요."},
+   more:{url:"http://data.busan.go.kr/bdip/statistics/busan/dayIn.do", name:"통계로 보는 ‘부산의 하루’", how:"하루 동안 기차와 배로 얼마나 실어 나르는지 그림으로 보여 줘요."},
+   maps:["부산광역시","부산항","부산 자동차 공장","부산 조선소","김해국제공항","부산역"],
+   orgL:"지도에서 찾은 공장·회사·항구 이름", orgP:"예) ○○ 부산공장, ○○ 조선소",
+   book:"126쪽", ask:["부산에는 어떤 교통이 모여 있나요?","인구는 교과서 때보다 늘었나요, 줄었나요?"]},
+  {id:"jeonju", name:"전북특별자치도 전주시", short:"전주", tag:"관광 산업이 발달한 도시", tb:670000, tbT:"약 67만 명", img:"assets/f_jeonju.jpg",
+   site:"https://www.jeonju.go.kr",
+   easy:{url:"https://www.jeonju.go.kr/index.9is?contentUid=ff8080818990c349018b041a9eec3a71", name:"전주시 누리집 인구 현황", how:"표 위쪽 ‘주민등록인구(총계)’ 줄에서 ‘인구수 계’를 읽어요."},
+   more:{url:"https://tour.jeonju.go.kr/", name:"전주 문화관광 누리집", how:"전주에서 볼거리와 즐길 거리를 사진으로 볼 수 있어요."},
+   maps:["전주시","전주 한옥마을","전주 영화의 거리","전주 천년한지관","전주역"],
+   orgL:"지도에서 찾은 관광지와 가게 이름", orgP:"예) 한옥 마을 안의 ○○, ○○ 박물관",
+   book:"127쪽", ask:["관광객은 전주에서 무엇을 보러 오나요?","관광객이 많으면 어떤 일터가 늘어나나요?"]},
+  {id:"ulsan", name:"울산광역시", short:"울산", tag:"여러 가지 공업이 발달한 도시", tb:1110000, tbT:"약 111만 명", img:"assets/f_ulsan.jpg",
+   site:"https://www.ulsan.go.kr",
+   easy:{url:JUMIN, name:"주민등록 인구통계 표", how:"표에서 ‘울산광역시’ 줄을 찾아 ‘총 인구수’를 읽어요."},
+   more:{url:"https://www.ulsan.go.kr/s/statData/", name:"울산광역시 통계", how:"울산시가 만든 통계 모음이에요."},
+   maps:["울산광역시","울산 자동차 공장","울산 조선소","울산 석유화학 공장","울산항","울산역"],
+   orgL:"지도에서 찾은 공장·회사 이름", orgP:"예) ○○자동차 울산공장, ○○ 조선소",
+   book:"128쪽", ask:["울산에서 발달한 공업 세 가지는 무엇인가요?","공장의 원료와 제품은 어떻게 오고 가나요?"]}
+];
+/* 낱말 카드에는 네 도시의 이름과 다른 곳의 이름이 섞여 있습니다. 학생이 확인한 것만 고르게 합니다. */
+var TRA = [
+  {t:"고속 국도", bank:["경부 고속 국도","호남 고속 국도","남해 고속 국도","중앙 고속 국도","서산영덕 고속 국도","논산천안 고속 국도","순천완주 고속 국도","울산 고속 국도","동해 고속 국도","함양울산 고속 국도"]},
+  {t:"철도", bank:["경부선","호남선","전라선","동해선","충북선","경전선","장항선"]},
+  {t:"고속 철도", bank:["경부 고속 철도","호남 고속 철도"]},
+  {t:"지하철", bank:["부산 지하철"]},
+  {t:"항구", bank:["부산항","울산항","인천항","군산항"]},
+  {t:"공항", bank:["김해 국제공항","울산 공항","청주 국제공항","인천 국제공항"]},
+  {t:"버스 터미널", bank:[]}
+];
+var TRA_T = TRA.map(function(o){ return o.t; });
+var ROLES = CITIES.map(function(c){ return {id:c.id, t:c.short+" 조사원", d:c.short+"의 인구·교통·산업을 찾아요."}; }).concat([
+  {id:"write", t:"기록이", d:"모둠이 찾은 내용을 보고서에 입력해요."},
+  {id:"check", t:"출처 점검이", d:"숫자와 이름이 맞는지 확인하고, 보고서를 샘보드에 올려요."}
+]);
+var BOARD = "https://samboard.vivasam.com/";
+var URBAN = "https://sgis.mods.go.kr/view/urban/main";              // SGIS 도시화 분석지도
+function mapRow(q){
+  var e = encodeURIComponent(q);
+  return '<div class="mp"><b>'+q+'</b><a href="https://map.naver.com/p/search/'+e+'" target="_blank" rel="noopener">네이버 지도 ↗</a>'+
+    '<a href="https://www.google.com/maps/search/?api=1&query='+e+'" target="_blank" rel="noopener">구글 지도 ↗</a></div>';
+}
+var IND = ["행정 기관 일","물류(짐 나르기)","조선(배 만들기)","자동차 공업","석유 화학 공업","관광","상점·음식점"];
+var FUNCS = ["행정","교통","관광","공업"];
+var SRC = ["주민등록 인구통계","교과서","네이버·구글 지도","정부청사·연구회 누리집","시청 누리집","SGIS","그 밖의 곳"];
+var NEED = ["pop","tra","ind","func","new","src"];   // 도장을 받는 여섯 칸
+
+var SCREENS = [{id:"cover",label:"출발"},{id:"ready",label:"출장 준비"}]
+  .concat(CITIES.map(function(c){ return {id:c.id,label:c.short,city:c}; }))
+  .concat([{id:"compare",label:"네 도시 비교"},{id:"report",label:"보고서 완성"},{id:"teacher",label:"선생님 안내",aside:true}]);
+var LAST = SCREENS.length-2, TEACHER = SCREENS.length-1;
+
+/* ===================== 상태 ===================== */
+var KEY = "viva-trip-report.v2";
+var S = {screen:0, d:{}};
+(function(){ try{ var o = JSON.parse(localStorage.getItem(KEY)||"null"); if (o && o.d){ S.d = o.d; S.screen = o.screen|0; } }catch(e){} })();
+var saveT = null;
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ document.getElementById("savedTag").textContent = "저장할 수 없는 기기예요"; }
+}
+function val(k){ return S.d[k]==null ? "" : S.d[k]; }
+function arr(k){ return Array.isArray(S.d[k]) ? S.d[k] : []; }
+
+/* ===================== 도우미 함수 ===================== */
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+function vivaSay(t){ return '<div class="viva"><div class="viva-pic"><img src="'+MASCOT+'" alt="비바"></div><div class="viva-say">'+t+'</div></div>'; }
+function ta(k, ph, rows){ return '<textarea id="f-'+k+'" data-k="'+k+'" rows="'+(rows||3)+'" placeholder="'+esc(ph)+'">'+esc(val(k))+'</textarea>'; }
+function tx(k, ph, mode){ return '<input type="text" id="f-'+k+'" data-k="'+k+'" placeholder="'+esc(ph)+'" value="'+esc(val(k))+'"'+(mode?' inputmode="'+mode+'"':'')+'>'; }
+function chips(k, list, cls){
+  var on = arr(k);
+  return '<div class="chips" data-chips="'+k+'">'+list.map(function(v){
+    return '<button type="button" class="chip '+(cls||"")+(on.indexOf(v)>=0?" on":"")+'" data-v="'+esc(v)+'" aria-pressed="'+(on.indexOf(v)>=0)+'">'+esc(v)+'</button>';
+  }).join("")+'</div>';
+}
+/* "381,542" · "38만 1542" · "약 38만 명" 모두 숫자로 읽습니다 */
+function num(v){
+  var s = String(v||"").replace(/,/g,""), m = s.match(/([\d.]+)\s*만\s*(\d*)\s*(천?)/);
+  if (m) return Math.round(parseFloat(m[1])*10000 + (m[2]?parseInt(m[2],10)*(m[3]?1000:1):0));
+  var d = s.replace(/[^\d]/g,""); return d ? parseInt(d,10) : null;
+}
+function man(n){ n = Math.abs(n); return n>=10000 ? "약 "+Math.round(n/10000).toLocaleString("ko-KR")+"만 명" : "약 "+Math.round(n/1000)+"천 명"; }
+function popNote(c){
+  var n = num(val(c.id+".pop"));
+  if (n==null) return null;
+  if (n < c.tb/10) return {warn:true, t:"숫자가 너무 작아요. 동이나 구가 아니라 "+c.short+" 전체 인구인지 확인해 보세요."};
+  if (n > c.tb*5) return {warn:true, t:"숫자가 너무 커요. "+c.short+"만 고른 숫자인지 확인해 보세요."};
+  var diff = n - c.tb;
+  if (Math.abs(diff) < 5000) return {t:n.toLocaleString("ko-KR")+"명 · 교과서(2022년 "+c.tbT+")와 거의 같아요."};
+  return {t:n.toLocaleString("ko-KR")+"명 · 교과서(2022년 "+c.tbT+")보다 "+man(diff)+" "+(diff>0?"늘었어요.":"줄었어요.")};
+}
+function filled(c, part){
+  var p = c.id+".";
+  if (part==="pop")  return num(val(p+"pop"))!=null;
+  if (part==="tra")  return arr(p+"tra").length>0 && val(p+"traNote").trim()!=="";
+  if (part==="ind")  return arr(p+"indC").length>0 && val(p+"ind").trim()!=="";
+  if (part==="func") return arr(p+"func").length>0 && val(p+"why").trim()!=="";
+  if (part==="new")  return val(p+"new").trim()!=="";
+  if (part==="src")  return arr(p+"src").length>0;
+  return false;
+}
+function names(v){ return String(v||"").split(",").map(function(x){ return x.trim(); }).filter(Boolean); }
+function doneCount(c){ return NEED.filter(function(k){ return filled(c,k); }).length; }
+
+/* ===================== 화면 ===================== */
+var BUILD = {};
+BUILD.cover = function(){
+  return '<div class="hero"><div class="hero-card"><span class="eyebrow o">오늘의 출장 명령</span>'+
+      '<h1>네 도시로 출장을 다녀와<br><em>출장 보고서</em>를 써요</h1>'+
+      '<p>믿을 수 있는 누리집과 교과서에서 직접 찾아, 도시마다 인구·교통·산업이 어떻게 다른지 보고해요.</p>'+
+      '<div class="inline"><div><label class="lb" for="f-team.name">모둠 이름</label>'+tx("team.name","예) 3모둠")+'</div>'+
+      '<div><label class="lb" for="f-team.date">출장 날짜</label>'+tx("team.date","예) 10월 12일")+'</div></div></div>'+
+      '<img src="'+COVER+'" alt="여행 가방을 끌고 도시를 걷는 비바. 뒤로 아파트와 기차역, 버스, 공장이 보인다."></div>'+
+    '<div class="dest">'+CITIES.map(function(c,i){
+      return '<button type="button" data-go="'+c.id+'"><i>'+(i+1)+'</i><div><b>'+c.short+'</b><span>'+c.tag+'</span></div></button>';
+    }).join("")+'</div>'+
+    '<div class="card" style="margin-top:24px"><h2>모둠 할 일 나누기</h2>'+
+      '<p class="q">모둠 안에서 1번부터 번호를 정하고, 일마다 맡을 번호를 눌러요. 한 사람이 두 가지를 맡아도 되고, 한 가지를 둘이 맡아도 돼요.</p>'+
+      '<div class="row"><b>우리 모둠은</b><div class="chips" id="teamN">'+[4,5,6].map(function(n){ return '<button type="button" class="chip" data-n="'+n+'">'+n+'명</button>'; }).join("")+'</div></div>'+
+      '<div class="roles" id="roles"></div><div class="fb" id="teamFb" role="status"></div></div>';
+};
+function teamN(){ var n = parseInt(val("team.n"),10); return n>=4 && n<=6 ? n : 4; }
+function owners(id){ var n = teamN(); return arr("role."+id).filter(function(v){ return parseInt(v,10)<=n; }); }
+function renderRoles(){
+  var n = teamN(), nums = [];
+  for (var i=1;i<=n;i++) nums.push(i+"번");
+  ROLES.forEach(function(r){ S.d["role."+r.id] = owners(r.id); });
+  document.getElementById("roles").innerHTML = ROLES.map(function(r){
+    return '<div class="role"><b>'+r.t+'</b><p>'+r.d+'</p>'+chips("role."+r.id, nums)+'</div>';
+  }).join("");
+  var bs = document.getElementById("teamN").children;
+  for (var k=0;k<bs.length;k++){ var on = +bs[k].dataset.n===n; bs[k].classList.toggle("on", on); bs[k].setAttribute("aria-pressed", String(on)); }
+  refreshTeam();
+}
+function refreshTeam(){
+  var n = teamN(), free = [], empty = [];
+  for (var i=1;i<=n;i++){ if (!ROLES.some(function(r){ return owners(r.id).indexOf(i+"번")>=0; })) free.push(i+"번"); }
+  ROLES.forEach(function(r){ if (!owners(r.id).length) empty.push(r.t); });
+  var fb = document.getElementById("teamFb"), msg = [];
+  if (empty.length) msg.push("맡을 사람이 없는 일: "+empty.join(", "));
+  if (free.length) msg.push("아직 맡은 일이 없는 모둠원: "+free.join(", "));
+  fb.textContent = msg.length ? msg.join(" · ") : "모든 일에 맡은 사람이 있어요. 출장을 떠나요!";
+  fb.classList.toggle("warn", msg.length>0);
+  CITIES.forEach(function(c){
+    var o = owners(c.id), el = document.querySelector('[data-owner="'+c.id+'"]');
+    el.textContent = o.length ? "조사원 "+o.join(", ") : "조사원을 아직 정하지 않았어요";
+  });
+}
+BUILD.ready = function(){
+  return '<span class="eyebrow">출장 준비</span><h1 class="title">조사 도구를 챙겨요</h1>'+
+    vivaSay("아무 글이나 믿으면 안 돼요. <b>나라와 시청이 만든 누리집</b>과 <b>교과서</b>에서 찾고, 어디서 찾았는지 꼭 골라요.")+
+    '<div class="tools">'+TOOLS.map(function(t){
+      var foot = t.url ? '<div><a class="btn sm" href="'+t.url+'" target="_blank" rel="noopener">'+t.btn+' ↗</a></div>'
+        : (t.lv===2 ? '<div class="row">'+CITIES.map(function(c){return '<a class="btn ghost sm" href="'+c.site+'" target="_blank" rel="noopener">'+c.short+' ↗</a>';}).join("")+'</div>' : '');
+      return '<div class="card tool"><div class="row"><span class="lv lv'+t.lv+'">'+LV[t.lv]+'</span><span class="who">'+t.who+'</span></div><h3>'+t.name+'</h3><p>'+t.desc+'</p>'+foot+'</div>';
+    }).join("")+'</div>'+
+    '<h2 class="sect">인구는 이렇게 찾아요</h2>'+
+    '<ol class="how"><li><b>인구 표 열기</b><span>도시 화면에서 ‘인구 표 열기’ 버튼을 눌러요.</span></li>'+
+      '<li><b>도시 줄 찾기</b><span>표에서 도시 이름이 쓰인 줄을 손가락으로 따라가요.</span></li>'+
+      '<li><b>총 인구수 읽기</b><span>‘총 인구수’ 칸의 숫자와 표 위에 쓰인 연도·달을 봐요.</span></li>'+
+      '<li><b>보고서에 쓰기</b><span>숫자를 그대로 옮겨 쓰면 비바가 교과서와 견주어 줘요.</span></li></ol>'+
+    '<h2 class="sect">더 해 보고 싶다면</h2>'+
+    '<div class="card"><p style="margin:0 0 12px"><b>SGIS 통계지도</b>는 지도를 움직이고 통계 버튼을 만들어야 해서 단계가 많아요. ‘SGIS 에듀 초등’의 ‘스스로하기’에서 먼저 연습해 보세요.</p>'+
+    '<div class="row"><a class="btn ghost sm" href="'+SGIS_EDU+'" target="_blank" rel="noopener">SGIS 에듀 초등 ↗</a><a class="btn ghost sm" href="'+SGIS_MAP+'" target="_blank" rel="noopener">통계지도 바로 열기 ↗</a></div></div>';
+};
+function cityScreen(c, idx){
+  var p = c.id+".", o = idx%2 ? " o" : "";
+  function card(n, part, title, q, body){
+    return '<section class="card'+o+'" data-part="'+part+'"><h2><span class="k">'+n+'</span>'+title+'<span class="ok" hidden>썼어요</span></h2><p class="q">'+q+'</p>'+body+'</section>';
+  }
+  return '<div class="banner"><img src="'+c.img+'" alt=""><div class="banner-t"><small>출장지 '+(idx+1)+' · '+c.tag+'</small><h1>'+c.name+'</h1><span class="owner" data-owner="'+c.id+'"></span></div>'+
+      '<div class="seal" data-seal="'+c.id+'"></div></div>'+
+    '<div class="work"><div class="stack">'+
+      card(1,"pop","인구","이 도시에는 몇 명이 살고 있나요?",
+        '<div class="inline"><div><label class="lb" for="f-'+p+'pop">조사한 인구</label>'+tx(p+"pop","예) 391,234","numeric")+'</div>'+
+        '<div><label class="lb" for="f-'+p+'popYear">언제 숫자인가요?</label>'+tx(p+"popYear","예) 2026년 9월")+'</div></div>'+
+        '<div class="fb" data-fb="'+c.id+'" hidden></div>')+
+      card(2,"tra","교통","사람과 물건은 어떻게 오고 가나요? 이 도시에 있는 것을 모두 고르고, 정확한 이름을 찾아 써요.",
+        chips(p+"tra",TRA_T)+
+        TRA.map(function(o,i){
+          var k = p+"tn"+i;
+          return '<div class="nm" data-nm="'+o.t+'" hidden><label class="lb" for="f-'+k+'">'+o.t+' 이름</label>'+tx(k, o.bank.length?"낱말 카드를 누르거나 직접 써요":"예) ○○ 종합 버스 터미널")+
+            (o.bank.length ? '<div class="bank" data-bank="'+k+'">'+o.bank.map(function(w){ return '<button type="button" class="wd" data-w="'+w+'">'+w+'</button>'; }).join("")+'</div>'+
+              '<p class="bank-t">지도와 누리집에서 확인한 이름만 눌러요. 이 도시에 없는 이름도 섞여 있어요.</p>' : '')+'</div>';
+        }).join("")+
+        '<div class="think"><b>생각 열쇠</b><ul><li>이 교통을 타면 어느 도시, 어느 나라와 이어지나요?</li><li>사람과 물건 가운데 무엇을 많이 실어 나르나요?</li><li>교통이 편리해서 이 도시에 좋은 점은 무엇인가요?</li></ul></div>'+
+        '<label class="lb" for="f-'+p+'traNote">찾은 자료를 자세히 써 보세요</label>'+ta(p+"traNote","예) ○○항에는 큰 배가 드나들어 다른 나라로 물건을 실어 보낸다.",3))+
+      card(3,"ind","산업","사람들은 어떤 일을 많이 하나요? 찾은 것을 모두 골라요.",
+        chips(p+"indC",IND)+
+        '<div class="think"><b>생각 열쇠</b><ul><li>그곳에서는 무엇을 만들거나 어떤 일을 하나요?</li><li>그 일터는 도시의 어디에 모여 있나요?</li><li>이 산업이 이 도시에서 발달한 까닭은 무엇일까요?</li></ul></div>'+
+        '<label class="lb" for="f-'+p+'org">'+c.orgL+'</label>'+tx(p+"org",c.orgP)+
+        '<p class="bank-t">조사 도우미의 ‘지도로 찾아보기’에서 지도를 확대해 실제 이름을 찾아요.</p>'+
+        '<label class="lb" for="f-'+p+'ind">찾은 자료를 자세히 써 보세요</label>'+ta(p+"ind","예) 바닷가에 큰 ○○ 공장이 모여 있고, 만든 물건을 배로 실어 보낸다.",3))+
+      card(4,"func","발달한 기능","이 도시에서 특히 발달한 기능을 고르고 까닭을 써요. 여러 개여도 좋아요.",
+        chips(p+"func",FUNCS,"f")+'<label class="lb" for="f-'+p+'why">왜냐하면</label>'+tx(p+"why","예) ○○이 많기 때문입니다"))+
+      card(5,"new","새로 알게 된 점","조사하면서 ‘아하!’ 했던 것을 한 문장으로 써요.",
+        tx(p+"new","예) 교과서보다 인구가 늘어 있었다"))+
+      card(6,"src","출처","어디에서 찾았나요? 이용한 곳을 모두 골라요.",
+        chips(p+"src",SRC))+
+    '</div>'+
+    '<aside class="help" aria-label="'+c.short+' 조사 도우미"><h2>'+c.short+' 조사 도우미</h2>'+
+      '<h3><span class="lv lv1">누구나</span> 인구 찾기</h3>'+
+      '<div class="links"><a href="'+c.easy.url+'" target="_blank" rel="noopener">'+c.easy.name+' 열기 ↗<span>'+c.easy.how+'</span></a></div>'+
+      '<h3><span class="lv lv1">누구나</span> 교통 · 산업 찾기</h3>'+
+      '<div class="book">사회 교과서 <b>'+c.book+'</b>의 지도와 글에서 찾아요.<ul>'+c.ask.map(function(a){return '<li>'+a+'</li>';}).join("")+'</ul></div>'+
+      '<h3><span class="lv lv2">도전</span> 더 알아보기</h3>'+
+      '<div class="links"><a href="'+c.more.url+'" target="_blank" rel="noopener">'+c.more.name+' ↗<span>'+c.more.how+'</span></a>'+
+        '<a href="'+URBAN+'" target="_blank" rel="noopener">SGIS 도시화 분석지도 ↗<span>재생 버튼을 누르면 2015년부터 도시(빨강)가 넓어지는 모습이 보여요.</span></a>'+
+        '<a href="'+c.site+'" target="_blank" rel="noopener">'+c.short+' 시청 누리집 ↗<span>글이 길고 어려워요. 선생님과 함께 봐요.</span></a></div>'+
+      '<h3><span class="lv lv1">누구나</span> 지도로 찾아보기</h3>'+
+      '<p class="bank-t" style="margin:0 0 8px">지도를 손가락으로 벌려 확대하면 길, 역, 공장, 기관의 진짜 이름이 보여요.</p>'+
+      '<div class="maps">'+c.maps.map(mapRow).join("")+'</div>'+
+      (c.extra ? '<h3><span class="lv lv2">도전</span> 기관 이름 찾기</h3><div class="links">'+c.extra.map(function(x){ return '<a href="'+x.url+'" target="_blank" rel="noopener">'+x.name+' ↗<span>'+x.how+'</span></a>'; }).join("")+'</div>' : '')+
+      '<h3><span class="lv lv3">고수</span> 지도로 보기</h3>'+
+      '<div class="links"><a href="'+SGIS_MAP+'" target="_blank" rel="noopener">SGIS 통계지도 ↗<span>위치 검색에 ‘'+c.short+'’ → ‘총인구(명)’ 고르기</span></a></div>'+
+      '<div class="book" style="margin-top:14px"><b>교과서(2022년)</b> 인구 '+c.tbT+'</div></aside></div>';
+}
+CITIES.forEach(function(c,i){ BUILD[c.id] = function(){ return cityScreen(c,i); }; });
+
+BUILD.compare = function(){
+  return '<span class="eyebrow">출장 정리</span><h1 class="title">네 도시를 견주어 봐요</h1>'+
+    vivaSay("내가 조사한 내용이 한자리에 모였어요. <b>무엇이 같고 무엇이 다른지</b> 찾아보세요.")+
+    '<div class="stack"><div class="card"><h2>도시별 인구</h2><p class="q">막대 길이는 인구에 맞춰 그려져요.</p>'+
+      '<div class="legend"><span><i></i>교과서(2022년)</span><span><i class="m"></i>내가 조사한 값</span></div><div class="bars" id="bars"></div></div>'+
+    '<div class="card"><h2>한눈에 보는 표</h2><div class="tscroll" id="cmpTable"></div></div>'+
+    '<div class="card"><h2>도시가 넓어지는 모습 보기</h2><p class="q">SGIS 도시화 분석지도에서 재생 버튼을 누르면 2015년부터 해마다 도시(빨강)와 준도시(노랑)가 어떻게 달라지는지 볼 수 있어요. 네 도시 가운데 가장 많이 넓어진 곳은 어디인가요?</p>'+
+      '<div class="row"><a class="btn sm" href="'+URBAN+'" target="_blank" rel="noopener">도시화 분석지도 열기 ↗</a></div>'+
+      '<label class="lb" for="f-cmp.urban">지도를 보고 알게 된 점</label>'+tx("cmp.urban","예) ○○은 빨간색이 점점 넓어졌다")+'</div>'+
+    '<div class="card"><h2>내 생각 정리</h2>'+
+      '<label class="lb" for="f-cmp.same">네 도시의 비슷한 점</label>'+ta("cmp.same","예) 네 도시 모두 교통이 …",2)+
+      '<label class="lb" for="f-cmp.diff">네 도시의 다른 점</label>'+ta("cmp.diff","예) 세종은 … 이 발달했지만 울산은 …",2)+
+      '<label class="lb" for="f-cmp.best">가장 기억에 남는 도시와 까닭</label>'+ta("cmp.best","출장을 다녀온 느낌을 써 보세요",2)+'</div></div>';
+};
+BUILD.report = function(){
+  return '<span class="eyebrow o">보고서 완성</span><h1 class="title">나의 도시 출장 보고서</h1>'+
+    '<p class="lede">쓴 내용이 한 장으로 모였어요. 빈칸이 있으면 도시 화면으로 돌아가 채워 보세요.</p>'+
+    '<div class="sheet" id="sheet"></div>'+
+    '<div class="row" style="margin-top:20px"><button class="btn" id="saveImg" hidden>그림 파일로 저장</button>'+
+    '<button class="btn ghost" id="copyTxt">글로 복사</button><span class="hint" id="saveHint" role="status"></span></div>'+
+    '<div class="card" style="margin-top:26px"><h2>샘보드에 올리기</h2><p class="q">출처 점검이가 보고서를 다시 읽어 본 다음, 모둠 보고서를 우리 반 샘보드에 올려요.</p>'+
+      '<ol class="guide"><li><b>보고서 저장하기</b><span>위의 ‘그림 파일로 저장’을 눌러요. 그림 저장이 안 되면 ‘글로 복사’를 눌러요.</span></li>'+
+      '<li><b>QR 코드 찍기</b><span>선생님이 화면에 띄워 주신 샘보드 QR 코드를 이 기기의 카메라로 찍어요. 우리 반 샘보드가 새 창으로 열려요.</span></li>'+
+      '<li><b>보고서 올리기</b><span>샘보드에 새 글을 만들고, 저장한 그림을 올리거나 복사한 글을 붙여 넣어요. 제목은 모둠 이름으로 써요.</span></li>'+
+      '<li><b>올라갔는지 확인하기</b><span>샘보드에 우리 모둠 보고서가 보이면 끝! 이 창으로 돌아오면 쓴 내용은 그대로 남아 있어요.</span></li></ol></div>';
+};
+BUILD.teacher = function(){
+  return '<span class="eyebrow">선생님 안내</span><h1 class="title">샘보드 준비와 수업 흐름</h1>'+
+    '<p class="lede">학생 보고서는 이 웹앱에 모이지 않고 각 기기에만 저장됩니다. 모둠 보고서는 선생님이 만든 샘보드에 올려서 모읍니다.</p>'+
+    '<div class="stack"><div class="card"><h2>수업 전 · 샘보드 만들기</h2><p class="q">샘보드는 비바샘 선생님 계정으로 만들 수 있고, 화면은 개편에 따라 조금 다를 수 있습니다.</p>'+
+      '<ol class="guide">'+
+      '<li><b>샘보드에 들어가 로그인합니다</b><span>samboard.vivasam.com 을 열고 ‘로그인하고 시작하기’를 눌러 비바샘 선생님 계정으로 로그인합니다.</span></li>'+
+      '<li><b>새 보드를 만듭니다</b><span>‘홈’이나 ‘내 보드’에서 보드를 새로 만들고, 보드 종류는 ‘담벼락’을 고릅니다. 모둠 보고서가 카드처럼 한 화면에 나란히 모여 함께 보기 좋습니다.</span></li>'+
+      '<li><b>보드 이름과 안내 글을 씁니다</b><span>예) 4학년 2반 도시 출장 보고서 · “모둠 이름을 제목으로 쓰고 보고서 그림을 올려 주세요.”</span></li>'+
+      '<li><b>모둠(조)을 설정합니다</b><span>모둠별로 올리게 하려면 ‘조 관리’에서 모둠을 만듭니다. 학생 이름 대신 1모둠, 2모둠처럼 모둠 이름을 씁니다. 이 단계는 보드를 만든 뒤에 해도 됩니다.</span></li>'+
+      '<li><b>학생 참여용 QR 코드를 준비합니다</b><span>학생은 QR 코드로 보드에 들어옵니다. 보드에서 QR 코드를 열어 수업 화면(TV·전자칠판)에 크게 띄울 수 있게 준비합니다.</span></li>'+
+      '<li><b>학생 기기로 미리 올려 봅니다</b><span>교실 태블릿 카메라로 QR 코드를 찍어 보드에 들어가고, 그림 파일이 올라가는지 한 번 시험합니다. 그림이 안 올라가면 ‘글로 복사’한 내용을 붙여 넣게 합니다.</span></li></ol>'+
+      '<div class="row" style="margin-top:14px"><a class="btn" href="'+BOARD+'" target="_blank" rel="noopener">샘보드 열기 ↗</a></div></div>'+
+    '<div class="card o"><h2>수업 중 · 모둠 운영</h2><ol class="guide">'+
+      '<li><b>모둠마다 기기 한 대로 이 웹앱을 엽니다</b><span>보고서는 기기 한 대에 모입니다. 조사는 다른 기기나 교과서로 하고, 기록이가 한 기기에 입력합니다.</span></li>'+
+      '<li><b>‘출발’ 화면에서 할 일을 나눕니다</b><span>모둠 인원(4~6명)을 고르고 번호로 도시 조사원 넷, 기록이, 출처 점검이를 정합니다. 4명 모둠은 조사원이 기록이와 점검이를 함께 맡습니다.</span></li>'+
+      '<li><b>도시별로 조사해 여섯 칸을 채웁니다</b><span>인구는 인구 표에서, 교통과 산업은 교과서와 지도에서 찾습니다. 여섯 칸을 채우면 도장이 찍힙니다.</span></li>'+
+      '<li><b>보고서를 저장해 샘보드에 올립니다</b><span>‘보고서 완성’ 화면에서 그림 파일로 저장한 뒤, 선생님이 화면에 띄운 QR 코드를 같은 기기의 카메라로 찍어 샘보드에 들어가 올립니다.</span></li>'+
+      '<li><b>샘보드에서 함께 봅니다</b><span>샘보드에 모인 모둠 보고서를 화면에 띄워 도시마다 무엇이 같고 다른지 견주어 봅니다.</span></li></ol></div>'+
+    '<div class="card"><h2>교통 이름 낱말 카드</h2><p style="margin:0">교통 칸의 낱말 카드에는 네 도시의 교통 이름과 다른 지역의 이름(인천항, 청주 국제공항, 장항선 등)이 섞여 있습니다. 학생이 지도와 누리집에서 확인한 이름만 고르도록 지도해 주세요. 정답은 따로 드린 선생님용 정답표에 있습니다.</p></div>'+
+    '<div class="card"><h2>지도 사용 안내</h2><p style="margin:0">도시 화면의 ‘지도로 찾아보기’는 네이버 지도와 구글 지도의 검색 결과를 새 탭으로 엽니다. 실제 공장과 기관 이름을 찾기에 좋지만, 검색 결과에 가게 광고나 별점·후기가 함께 보일 수 있습니다. 학교 기기에서 두 지도가 열리는지 미리 확인해 주세요.</p></div>'+
+    '<div class="card"><h2>개인 정보</h2><p style="margin:0">이 웹앱은 학생 이름을 묻지 않습니다. 모둠 이름과 모둠 안 번호만 쓰며, 입력한 내용은 그 기기의 브라우저에만 저장됩니다. ‘처음부터’를 누르면 모두 지워집니다.</p></div></div>';
+};
+
+var scroller = document.getElementById("scroller");
+SCREENS.forEach(function(s){
+  var sec = document.createElement("section");
+  sec.className = "screen"; sec.id = "s-"+s.id; sec.hidden = true; sec.innerHTML = BUILD[s.id]();
+  scroller.appendChild(sec);
+});
+
+/* ===================== 단계 줄 ===================== */
+var stepsEl = document.getElementById("steps");
+stepsEl.innerHTML = SCREENS.map(function(s,i){
+  if (s.aside) return "";
+  return '<button class="step" data-i="'+i+'"><span class="n">'+(i+1)+'</span><span>'+s.label+'</span>'+(s.city?'<span class="pg" data-pg="'+s.id+'"></span>':'')+'</button>';
+}).join("");
+stepsEl.addEventListener("click", function(e){ var b = e.target.closest(".step"); if (b) go(+b.dataset.i); });
+
+function refreshCity(c){
+  var sec = document.getElementById("s-"+c.id), n = doneCount(c), all = n===NEED.length;
+  NEED.forEach(function(k){ sec.querySelector('[data-part="'+k+'"] .ok').hidden = !filled(c,k); });
+  var seal = sec.querySelector(".seal");
+  seal.classList.toggle("on", all);
+  seal.innerHTML = all ? "출장<br>완료" : "여섯 칸을<br>채우면<br>도장 쾅";
+  var on = arr(c.id+".tra"), nms = sec.querySelectorAll(".nm");
+  for (var i=0;i<nms.length;i++){
+    nms[i].hidden = on.indexOf(nms[i].dataset.nm)<0;
+    var have = names(val(c.id+".tn"+i)), ws = nms[i].querySelectorAll(".wd");
+    for (var w=0;w<ws.length;w++){ var has = have.indexOf(ws[w].dataset.w)>=0; ws[w].classList.toggle("on", has); ws[w].setAttribute("aria-pressed", String(has)); }
+  }
+  var fb = sec.querySelector(".fb"), note = popNote(c);
+  fb.hidden = !note; if (note){ fb.textContent = note.t; fb.classList.toggle("warn", !!note.warn); }
+  var step = stepsEl.querySelector('[data-pg="'+c.id+'"]');
+  step.textContent = all ? "완료" : n+"/"+NEED.length;
+  step.parentNode.classList.toggle("done", all);
+}
+
+/* ===================== 비교 · 보고서 ===================== */
+function show(v){ return String(v).trim() ? esc(v) : '<span class="empty">아직 쓰지 않았어요</span>'; }
+function join(a, extra){ var t = a.join(", "); if (extra && String(extra).trim()) t += (t?"\n":"")+extra; return t; }
+function popText(c){
+  var n = num(val(c.id+".pop")); if (n==null) return "";
+  var y = val(c.id+".popYear").trim(); return n.toLocaleString("ko-KR")+"명"+(y?" ("+y+")":"");
+}
+function renderCompare(){
+  var vals = CITIES.map(function(c){ return num(val(c.id+".pop")); });
+  var max = Math.max.apply(null, CITIES.map(function(c,i){ return Math.max(c.tb, vals[i]||0); }));
+  document.getElementById("bars").innerHTML = CITIES.map(function(c,i){
+    var v = vals[i];
+    return '<div class="bar-row"><b>'+c.short+'</b><div>'+
+      '<div class="bar"><i style="width:'+(c.tb/max*78).toFixed(1)+'%"></i><span>'+c.tbT+'</span></div>'+
+      (v!=null ? '<div class="bar mine"><i style="width:'+(v/max*78).toFixed(1)+'%"></i><span>'+v.toLocaleString("ko-KR")+'명</span></div>'
+               : '<div class="bar none"><span>아직 조사하지 않았어요</span></div>')+'</div></div>';
+  }).join("");
+  document.getElementById("cmpTable").innerHTML = '<table class="cmp"><thead><tr><th>도시</th><th>인구</th><th>교통</th><th>산업</th><th>발달한 기능</th></tr></thead><tbody>'+
+    CITIES.map(function(c){ var p = c.id+".";
+      return '<tr><td>'+c.short+'</td><td>'+show(popText(c))+'</td><td>'+show(arr(p+"tra").join(", "))+'</td><td>'+show(join(arr(p+"indC"), val(p+"ind")))+'</td><td>'+show(arr(p+"func").join(", "))+'</td></tr>';
+    }).join("")+'</tbody></table>';
+}
+function rows(c){
+  var p = c.id+".", why = val(p+"why").trim();
+  return [["인구", popText(c)],
+          ["교통", [arr(p+"tra").map(function(t){ var nm = names(val(p+"tn"+TRA_T.indexOf(t))).join(", "); return nm ? t+": "+nm : t; }).join("\n"), val(p+"traNote").trim()].filter(Boolean).join("\n")],
+          ["산업", [arr(p+"indC").join(", "), val(p+"org").trim() ? "찾은 이름: "+val(p+"org").trim() : "", val(p+"ind").trim()].filter(Boolean).join("\n")],
+          ["발달한 기능", join(arr(p+"func"), why ? "왜냐하면 "+why : "")],
+          ["새로 알게 된 점", val(p+"new")],
+          ["출처", arr(p+"src").join(", ")]];
+}
+var CMP = [["도시가 넓어진 모습","cmp.urban"],["비슷한 점","cmp.same"],["다른 점","cmp.diff"],["기억에 남는 도시","cmp.best"]];
+function renderReport(){
+  document.getElementById("sheet").innerHTML =
+    '<div class="sheet-h"><h2><img src="'+MASCOT+'" alt="">도시 출장 보고서</h2>'+
+      '<table class="sign"><tr><th>모둠</th><th>선생님 확인</th></tr><tr><td>'+esc(val("team.name"))+'</td><td></td></tr></table></div>'+
+    '<div class="meta"><span><b>모둠</b>'+show(val("team.name"))+'</span><span><b>출장 날짜</b>'+show(val("team.date"))+'</span><span><b>출장지</b>세종 · 부산 · 전주 · 울산</span></div>'+
+    '<div class="meta"><span><b>맡은 일</b>'+esc(roleText())+'</span></div>'+
+    CITIES.map(function(c){
+      return '<div class="rc"><h3>'+c.name+'</h3><table>'+rows(c).map(function(r){ return '<tr><th>'+r[0]+'</th><td>'+show(r[1])+'</td></tr>'; }).join("")+'</table></div>';
+    }).join("")+
+    '<div class="rc"><h3>네 도시 비교</h3><table>'+CMP.map(function(r){ return '<tr><th>'+r[0]+'</th><td>'+show(val(r[1]))+'</td></tr>'; }).join("")+'</table></div>';
+}
+function roleText(){ return ROLES.map(function(r){ var o = owners(r.id); return r.t+" "+(o.length?o.join("·"):"미정"); }).join(" / "); }
+function reportText(){
+  var out = ["[도시 출장 보고서]", "모둠: "+val("team.name"), "출장 날짜: "+val("team.date"), "맡은 일: "+roleText(), ""];
+  CITIES.forEach(function(c){
+    out.push("■ "+c.name);
+    rows(c).forEach(function(r){ out.push("- "+r[0]+": "+(String(r[1]).trim().replace(/\n/g," / ")||"(빈칸)")); });
+    out.push("");
+  });
+  out.push("■ 네 도시 비교");
+  CMP.forEach(function(r){ out.push("- "+r[0]+": "+(val(r[1]).trim()||"(빈칸)")); });
+  return out.join("\n");
+}
+
+/* ===================== 이동 ===================== */
+function go(i){
+  i = Math.max(0, Math.min(SCREENS.length-1, i));
+  S.screen = i; save();
+  var secs = scroller.children, st = stepsEl.children;
+  for (var k=0;k<secs.length;k++) secs[k].hidden = k!==i;
+  for (var m=0;m<st.length;m++) st[m].classList.toggle("is-now", m===i);
+  if (st[i] && st[i].scrollIntoView) st[i].scrollIntoView({block:"nearest", inline:"center"});
+  document.getElementById("teacherBtn").classList.toggle("warn", i===TEACHER);
+  var id = SCREENS[i].id;
+  if (id==="compare") renderCompare();
+  if (id==="report") renderReport();
+  document.getElementById("prevBtn").disabled = i===0;
+  var nb = document.getElementById("nextBtn");
+  nb.disabled = i>=LAST;
+  nb.textContent = i===0 ? "출장 떠나기 ▶" : (i>=LAST ? "마지막 화면" : "다음 ▶");
+
+  scroller.scrollTop = 0;
+  try{ history.replaceState(null,"","#"+id); }catch(e){}
+}
+document.getElementById("nextBtn").addEventListener("click", function(){ go(S.screen+1); });
+document.getElementById("prevBtn").addEventListener("click", function(){ go(S.screen-1); });
+var backTo = 0;
+document.getElementById("teacherBtn").addEventListener("click", function(){
+  if (S.screen===TEACHER) go(backTo); else { backTo = S.screen; go(TEACHER); }
+});
+
+
+/* ===================== 입력 ===================== */
+function cityOfKey(k){ var id = k.split(".")[0]; return CITIES.filter(function(c){ return c.id===id; })[0]; }
+scroller.addEventListener("input", function(e){
+  var k = e.target.dataset && e.target.dataset.k; if (!k) return;
+  S.d[k] = e.target.value;
+  clearTimeout(saveT); saveT = setTimeout(save, 250);
+  var c = cityOfKey(k); if (c) refreshCity(c);
+});
+scroller.addEventListener("click", function(e){
+  var nb = e.target.closest("[data-n]");
+  if (nb){ S.d["team.n"] = nb.dataset.n; renderRoles(); save(); return; }
+  var wd = e.target.closest(".wd");
+  if (wd){
+    var bk = wd.parentNode.dataset.bank, list = names(val(bk)), wi = list.indexOf(wd.dataset.w);
+    if (wi>=0) list.splice(wi,1); else list.push(wd.dataset.w);
+    S.d[bk] = list.join(", "); save();
+    document.getElementById("f-"+bk).value = S.d[bk];
+    refreshCity(cityOfKey(bk)); return;
+  }
+  var chip = e.target.closest(".chip");
+  if (chip){
+    var k = chip.parentNode.dataset.chips, v = chip.dataset.v, a = arr(k).slice(), at = a.indexOf(v);
+    if (at>=0) a.splice(at,1); else a.push(v);
+    S.d[k] = a; save();
+    chip.classList.toggle("on", at<0); chip.setAttribute("aria-pressed", String(at<0));
+    var c = cityOfKey(k); if (c) refreshCity(c);
+    if (k.indexOf("role.")===0) refreshTeam();
+    return;
+  }
+  var g = e.target.closest("[data-go]");
+  if (g) go(SCREENS.map(function(s){ return s.id; }).indexOf(g.dataset.go));
+});
+
+/* 처음부터 — 두 번 눌러야 지워집니다 */
+(function(){
+  var b = document.getElementById("resetBtn"), t = null;
+  b.addEventListener("click", function(){
+    if (!b.classList.contains("warn")){
+      b.classList.add("warn"); b.textContent = "모두 지울까요? 한 번 더";
+      t = setTimeout(function(){ b.classList.remove("warn"); b.textContent = "처음부터"; }, 4000);
+      return;
+    }
+    clearTimeout(t);
+    try{ localStorage.removeItem(KEY); }catch(e){}
+    location.reload();
+  });
+})();
+
+/* 저장 — 뷰어의 downloads 기능이 있을 때만 그림 저장 버튼을 보여 줍니다 */
+(function(){
+  var btn = document.getElementById("saveImg"), hint = document.getElementById("saveHint"), dl = null;
+  if (window.claude && window.claude.use){
+    window.claude.use("downloads").then(function(d){ if (d){ dl = d; btn.hidden = false; } }).catch(function(){});
+  } else btn.hidden = false;   /* 일반 누리집에서는 브라우저 내려받기로 저장합니다 */
+  function direct(blob, filename){
+    var a = document.createElement("a"), u = URL.createObjectURL(blob);
+    a.href = u; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(u); }, 5000);
+  }
+  btn.addEventListener("click", function(){
+    if (typeof html2canvas !== "function"){ hint.textContent = "이 화면에서는 그림으로 저장할 수 없어요. ‘글로 복사’를 써 보세요."; return; }
+    btn.disabled = true; hint.textContent = "그림을 만들고 있어요…";
+    html2canvas(document.getElementById("sheet"), {backgroundColor:"#ffffff", scale:2, logging:false}).then(function(cv){
+      return new Promise(function(res, rej){ cv.toBlob(function(b){ b ? res(b) : rej(new Error("blob")); }, "image/png"); });
+    }).then(function(blob){
+      var name = (val("team.name").trim() || "모둠").replace(/[\\/:*?"<>|]/g,"");
+      var fname = "도시 출장 보고서_"+name+".png";
+      return dl ? dl.save({filename:fname, data:blob}) : direct(blob, fname);
+    }).then(function(){ hint.textContent = "저장했어요."; })
+      .catch(function(err){
+        hint.textContent = err && err.code==="declined" ? "저장을 취소했어요." : "그림으로 저장하지 못했어요. ‘글로 복사’를 써 보세요.";
+      }).then(function(){ btn.disabled = false; });
+  });
+  document.getElementById("copyTxt").addEventListener("click", function(){
+    var text = reportText();
+    function fallback(){
+      var t = document.createElement("textarea"); t.value = text; t.rows = 8; t.setAttribute("aria-label","보고서 글");
+      t.style.marginTop = "14px"; document.getElementById("sheet").after(t); t.select();
+      hint.textContent = "아래 칸의 글을 길게 눌러 복사하세요.";
+    }
+    try{ navigator.clipboard.writeText(text).then(function(){ hint.textContent = "복사했어요. 붙여넣기 하면 돼요."; }, fallback); }catch(e){ fallback(); }
+  });
+})();
+
+/* ===================== 시작 ===================== */
+renderRoles();
+CITIES.forEach(refreshCity);
+var start = S.screen, h = (location.hash||"").slice(1);
+SCREENS.forEach(function(s,i){ if (s.id===h) start = i; });
+go(start);
+})();
+</script>
+
+</body>
+</html>
